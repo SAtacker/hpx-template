@@ -3,12 +3,28 @@ cmake_minimum_required(VERSION 3.19)
 project("HPX Optimization cases" CXX)
 
 option(WITH_CUSTOM_HPX "Use available HPX" OFF)
+option(WITH_CUSTOM_GOOGLE_BENCH "Use available googlebench" OFF)
+
+include(FetchContent)
+
+if(WITH_CUSTOM_GOOGLE_BENCH)
+  find_package(googlebench REQUIRED)
+else()
+  set(BENCHMARK_ENABLE_TESTING OFF CACHE INTERNAL "")
+
+  FetchContent_Declare(
+      googlebenchmark
+      GIT_REPOSITORY https://github.com/google/benchmark.git
+      GIT_TAG v1.8.3
+  )
+  
+  FetchContent_MakeAvailable(googlebenchmark)
+endif()
 
 if(WITH_CUSTOM_HPX)
   find_package(HPX REQUIRED)
 else()
   # Installing Boost
-  include(FetchContent)
   FetchContent_Declare(Boost
       URL https://github.com/boostorg/boost/releases/download/boost-1.81.0/boost-1.81.0.tar.gz
       TLS_VERIFY true
@@ -99,11 +115,21 @@ endif()
 
 add_executable(opt_bench src/main.cpp)
 
+# Link Shlwapi to the project
+if ("${CMAKE_SYSTEM_NAME}" MATCHES "Windows")
+  set(_EXTRA_LIBS_ Shlwapi)
+else()
+  set(_EXTRA_LIBS_ "")
+endif()
+
 target_link_libraries(opt_bench
  PRIVATE HPX::hpx 
- PRIVATE HPX::wrap_main 
+ PRIVATE HPX::wrap_main
  PRIVATE HPX::iostreams_component
+ PRIVATE benchmark::benchmark
+ PRIVATE ${_EXTRA_LIBS_}
 )
+
 
 if(WIN32 OR "${CMAKE_GENERATOR_PLATFORM}" STREQUAL "Win64" AND NOT WITH_CUSTOM_HPX)
   add_custom_command(TARGET opt_bench POST_BUILD
